@@ -62,8 +62,12 @@ func CopyFile(src string, dst string) error {
 	}
 	defer dstFh.Close()
 
-	if _, err = io.Copy(dstFh, srcFh); err != nil {
+	size, err := io.Copy(dstFh, srcFh)
+	if err != nil {
 		return fmt.Errorf("can't copy data: %w", err)
+	}
+	if size != srcInfo.Size() {
+		return fmt.Errorf("incomplete copy, %d of %d", size, srcInfo.Size())
 	}
 	return dstFh.Sync()
 }
