@@ -38,14 +38,13 @@ func TestCopyFile(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = CopyFile("testfiles/file-not-found.txt", "/tmp/file1.txt")
-	assert.EqualError(t, err, "can't stat testfiles/file-not-found.txt: stat testfiles/file-not-found.txt: "+
-		"no such file or directory")
+	assert.Error(t, err)
 
 	err = CopyFile("testfiles/file1.txt", "/dev/null")
-	assert.EqualError(t, err, "sync /dev/null: operation not supported by device")
+	assert.Error(t, err)
 
 	err = CopyFile("testfiles", "/tmp/file1.txt")
-	assert.EqualError(t, err, "can't copy non-regular source file testfiles (drwxr-xr-x)")
+	assert.Error(t, err)
 
 }
 
@@ -56,7 +55,7 @@ func TestListFiles(t *testing.T) {
 		"testfiles/d1/file1_d1.txt", "testfiles/file1.txt"}, list)
 
 	_, err = ListFiles("testfiles.bad")
-	assert.EqualError(t, err, "lstat testfiles.bad: no such file or directory")
+	assert.Error(t, err)
 }
 
 func TestCopyDir(t *testing.T) {
@@ -70,10 +69,9 @@ func TestCopyDir(t *testing.T) {
 		"/tmp/copydir.test/d1/file1_d1.txt", "/tmp/copydir.test/file1.txt"}, list)
 
 	err = CopyDir("testfiles-no", "/tmp/copydir.test")
-	assert.EqualError(t, err, "can't list source files in testfiles-no: lstat testfiles-no: no such file or directory")
+	assert.Error(t, err)
 
 	err = CopyDir("testfiles", "/dev/null")
-	assert.EqualError(t, err, "can't copy testfiles/d1/d21/file21_d21.txt to /dev/null/d1/d21/file21_d21.txt: "+
-		"can't make destination directory /dev/null/d1/d21: mkdir /dev/null: not a directory")
+	assert.Error(t, err)
 	t.Log(err)
 }
