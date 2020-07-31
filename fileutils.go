@@ -1,3 +1,4 @@
+// Package fileutils provides useful, high-level file operations
 package fileutils
 
 import (
