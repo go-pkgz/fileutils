@@ -6,7 +6,7 @@ Package `fileutils` provides useful, high-level file operations.
 
 - `IsFile` & `IsDir` checks if file/directory exits
 - `CopyFile` copies a file from source to destination
-- `CopyDir` copies all files recursively in source directory to destination directory
+- `CopyDir` copies all files recursively from the source to destination directory
 - `ListFiles` returns sorted slice of file paths in directory
 
 ## Install and update
