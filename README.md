@@ -9,6 +9,7 @@ Package `fileutils` provides useful, high-level file operations.
 - `CopyDir` copies all files recursively from the source to destination directory
 - `ListFiles` returns sorted slice of file paths in directory
 - `TempFileName` returns returns a new temporary file name
+- `SanitizePath` cleans file path
 
 ## Install and update
 

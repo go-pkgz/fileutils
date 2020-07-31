@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -150,4 +151,12 @@ func TempFileName(dir, pattern string) (string, error) {
 		}
 	}
 	return "", errors.New("can't generate temp file name")
+}
+
+// reInvalidPathChars is used to remove invalid path characters
+var reInvalidPathChars = regexp.MustCompile(`[<>:"|?*]+`)
+
+// SanitizePath removes invalid characters from path
+func SanitizePath(s string) string {
+	return reInvalidPathChars.ReplaceAllString(filepath.Clean(s), "_")
 }

@@ -2,6 +2,7 @@ package fileutils
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -93,4 +94,22 @@ func TestTempFileName(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(r3)
 	assert.True(t, strings.HasPrefix(r3, "somedir/"))
+}
+
+func TestSanitizePath(t *testing.T) {
+	tbl := []struct {
+		inp, out string
+	}{
+		{"aaaa", "aaaa"},
+		{"aaaa?bb", "aaaa_bb"},
+		{"aaaa/bb", "aaaa/bb"},
+		{"aaaa?*bb", "aaaa_bb"},
+		{"aa*aa?*bb", "aa_aa_bb"},
+		{"aa>aa<bb", "aa_aa_bb"},
+	}
+	for i, tt := range tbl {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			assert.Equal(t, tt.out, SanitizePath(tt.inp))
+		})
+	}
 }
