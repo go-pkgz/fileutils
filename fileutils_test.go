@@ -2,6 +2,7 @@ package fileutils
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,4 +75,22 @@ func TestCopyDir(t *testing.T) {
 	err = CopyDir("testfiles", "/dev/null")
 	assert.Error(t, err)
 	t.Log(err)
+}
+
+func TestTempFileName(t *testing.T) {
+	r1, err := TempFileName("", "something-*.txt")
+	require.NoError(t, err)
+	t.Log(r1)
+	assert.Contains(t, r1, "something-")
+	assert.Contains(t, r1, ".txt")
+
+	r2, err := TempFileName("", "something-*.txt")
+	require.NoError(t, err)
+	t.Log(r2)
+	assert.NotEqual(t, r1, r2)
+
+	r3, err := TempFileName("somedir", "something-*.txt")
+	require.NoError(t, err)
+	t.Log(r3)
+	assert.True(t, strings.HasPrefix(r3, "somedir/"))
 }
