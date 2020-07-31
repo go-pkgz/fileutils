@@ -94,6 +94,11 @@ func TestTempFileName(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(r3)
 	assert.True(t, strings.HasPrefix(r3, "somedir/"))
+
+	r4, err := TempFileName("somedir", "something-")
+	require.NoError(t, err)
+	t.Log(r4)
+	assert.True(t, strings.HasPrefix(r4, "somedir/something-"))
 }
 
 func TestSanitizePath(t *testing.T) {
