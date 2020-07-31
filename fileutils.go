@@ -144,7 +144,8 @@ func TempFileName(dir, pattern string) (string, error) {
 
 	for i := 0; i < 10000; i++ {
 		name := filepath.Join(dir, prefix+fmt.Sprintf("%x", rand.Int())+suffix) //nolint
-		if !exists(name, false) && !exists(name, true) {
+		_, err := os.Stat(name)
+		if os.IsNotExist(err) {
 			return name, nil
 		}
 	}
