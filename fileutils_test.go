@@ -28,7 +28,8 @@ func TestExistsDir(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	defer os.Remove("/tmp/file1.txt")
+	defer func() { _ = os.Remove("/tmp/file1.txt") }()
+
 	err := CopyFile("testfiles/file1.txt", "/tmp/file1.txt")
 	require.NoError(t, err)
 
@@ -61,7 +62,8 @@ func TestListFiles(t *testing.T) {
 }
 
 func TestCopyDir(t *testing.T) {
-	defer os.RemoveAll("/tmp/copydir.test")
+	defer func() { _ = os.RemoveAll("/tmp/copydir.test") }()
+
 	err := CopyDir("testfiles", "/tmp/copydir.test")
 	require.NoError(t, err)
 
