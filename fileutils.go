@@ -25,7 +25,6 @@ func IsFile(filename string) bool {
 // IsDir returns true if directory exists
 func IsDir(dirname string) bool {
 	return exists(dirname, true)
-
 }
 
 func exists(name string, dir bool) bool {
@@ -56,18 +55,18 @@ func CopyFile(src string, dst string) error {
 	if err != nil {
 		return fmt.Errorf("can't open source file %s: %w", src, err)
 	}
-	defer srcFh.Close()
+	defer srcFh.Close() //nolint
 
 	err = os.MkdirAll(filepath.Dir(dst), 0750)
 	if err != nil {
 		return fmt.Errorf("can't make destination directory %s: %w", filepath.Dir(dst), err)
 	}
 
-	dstFh, err := os.Create(dst)
+	dstFh, err := os.Create(dst) //nolint
 	if err != nil {
 		return fmt.Errorf("can't create destination file %s: %w", dst, err)
 	}
-	defer dstFh.Close()
+	defer dstFh.Close() //nolint
 
 	size, err := io.Copy(dstFh, srcFh)
 	if err != nil {
@@ -121,7 +120,7 @@ func ListFiles(directory string) (list []string, err error) {
 // for temporary files (see os.TempDir).
 // Multiple programs calling TempFileName simultaneously
 // will not choose the same file name.
-// some of the code borrowed from stdlib https://golang.org/src/io/ioutil/tempfile.go
+// some code borrowed from stdlib https://golang.org/src/io/ioutil/tempfile.go
 func TempFileName(dir, pattern string) (string, error) {
 	once.Do(func() {
 		rand.Seed(time.Now().UnixNano())

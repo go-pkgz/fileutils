@@ -30,7 +30,7 @@ linters:
   disable-all: true
   enable:
     - megacheck
-    - golint
+    - revive
     - govet
     - unconvert
     - megacheck
@@ -46,7 +46,6 @@ linters:
     - varcheck
     - stylecheck
     - gochecknoinits
-    - golint
     - nakedret
     - gosimple
     - prealloc
