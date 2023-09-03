@@ -113,7 +113,14 @@ func TestSanitizePath(t *testing.T) {
 		{"aaaa?*bb", "aaaa_bb"},
 		{"aa*aa?*bb", "aa_aa_bb"},
 		{"aa>aa<bb", "aa_aa_bb"},
+		{"path/to/file.txt", "path/to/file.txt"},
+		{"  path/to/file.txt   ", "path/to/file.txt"},
+		{"path<>to|file?.txt", "path_to_file_.txt"},
+		{strings.Repeat("a", maxPathLength+10), strings.Repeat("a", maxPathLength)},
+		{"path\\to/file.txt", "path/to/file.txt"},
+		{"con/nul", "con/nul"},
 	}
+
 	for i, tt := range tbl {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			assert.Equal(t, tt.out, SanitizePath(tt.inp))
