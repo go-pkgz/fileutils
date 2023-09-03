@@ -155,6 +155,7 @@ func TempFileName(dir, pattern string) (string, error) {
 var reInvalidPathChars = regexp.MustCompile(`[<>:"|?*]+`) // invalid path characters
 const maxPathLength = 1024                                // maximum length for path
 
+// SanitizePath returns a sanitized version of the given path.
 func SanitizePath(s string) string {
 	s = strings.TrimSpace(s)
 	s = reInvalidPathChars.ReplaceAllString(filepath.Clean(s), "_")
