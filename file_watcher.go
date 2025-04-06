@@ -92,7 +92,6 @@ func (fw *FileWatcher) watch() {
 
 			// convert fsnotify event to our event type
 			var eventType enum.EventType
-			
 			switch {
 			case event.Has(fsnotify.Create):
 				eventType = enum.EventTypeCreate
