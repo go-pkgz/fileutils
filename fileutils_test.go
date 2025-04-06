@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/go-pkgz/fileutils/enum"
 )
 
 func TestExistsFile(t *testing.T) {
@@ -148,11 +150,11 @@ func TestMoveFile(t *testing.T) {
 		srcFile := filepath.Join(os.TempDir(), "move_test_src.txt")
 		err := os.WriteFile(srcFile, []byte("test content"), 0600)
 		require.NoError(t, err)
-		defer os.Remove(srcFile)
+		defer func() { _ = os.Remove(srcFile) }()
 
 		// create temp destination
 		dstFile := filepath.Join(os.TempDir(), "move_test_dst.txt")
-		defer os.Remove(dstFile)
+		defer func() { _ = os.Remove(dstFile) }()
 
 		// perform move
 		err = MoveFile(srcFile, dstFile)
@@ -271,5 +273,95 @@ func TestTouchFile(t *testing.T) {
 
 		err = TouchFile("/dev/null/invalid")
 		require.Error(t, err)
+	})
+}
+func TestChecksum(t *testing.T) {
+	// create a temporary test file
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "checksum_test.txt")
+	content := []byte("this is a test file for checksum calculation")
+	err := os.WriteFile(testFile, content, 0600)
+	require.NoError(t, err)
+
+	// expected checksums (re-calculated)
+	expectedMD5 := "656b12fec36f7df11771b03c53e177ba"
+	expectedSHA1 := "be4c9cf3936f6d20ee0f38637605a405ea831168"
+	expectedSHA224 := "098477fd72b5128aa051cbd0a09010d14b3dd18114d66b061f0ff382"
+	expectedSHA384 := "a4de83d650a8a4d07483ad61296685d9d261e6edb940a025b8b981f90c17bdca794d45f202b2b8c3de5cd9c9bcf5e1e0"
+	expectedSHA512 := "a182278014c2a2d6d00de8442ab0e358e689269965eea6dfb7761abe019d0c34d47c181e19f1021901a5c0cf65b82871a0fa36b8bb187f9f5bf97ed182798e9e"
+	expectedSHA512_224 := "aab1745f6f1464c67c4a46d29c3a79132afe6d104f96a1266a69a278"
+	expectedSHA512_256 := "b5bc9721b180d5c79264f5fbb61404b516b6bfcb486c95b65329a1fe71ff6728"
+	expectedSHA256 := "7644ba794d6c4df31bd440ea9f7ecbcb8f2f3846cc58fcbf55d13560e168c863"
+
+	t.Run("md5", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgMD5)
+		require.NoError(t, err)
+		assert.Equal(t, expectedMD5, checksum)
+	})
+
+	t.Run("sha1", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgSHA1)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA1, checksum)
+	})
+
+	t.Run("sha256", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgSHA256)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA256, checksum)
+	})
+
+	t.Run("sha224", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgSHA224)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA224, checksum)
+	})
+
+	t.Run("sha384", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgSHA384)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA384, checksum)
+	})
+
+	t.Run("sha512", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgSHA512)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA512, checksum)
+	})
+
+	t.Run("sha512_224", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgSHA512_224)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA512_224, checksum)
+	})
+
+	t.Run("sha512_256", func(t *testing.T) {
+		checksum, err := Checksum(testFile, enum.HashAlgSHA512_256)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA512_256, checksum)
+	})
+
+	t.Run("parse from string", func(t *testing.T) {
+		// test parsing from string
+		alg, err := enum.ParseHashAlg("sha256")
+		require.NoError(t, err)
+		checksum, err := Checksum(testFile, alg)
+		require.NoError(t, err)
+		assert.Equal(t, expectedSHA256, checksum)
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		_, err := Checksum("nonexistent.txt", enum.HashAlgMD5)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "file not found")
+
+		// test invalid algorithm parsing
+		_, err = enum.ParseHashAlg("unsupported_algo")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid hashAlg")
+
+		_, err = Checksum("", enum.HashAlgMD5)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "empty path")
 	})
 }
