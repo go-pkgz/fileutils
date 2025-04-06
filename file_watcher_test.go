@@ -98,17 +98,30 @@ func TestWatchRecursive(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 
 	// clear channel from warmup events
-	select {
-	case <-eventCh:
-		// discard warmup event
-	default:
-		// no event yet, continue
+	// make sure we drain all events from the warmup
+	timeout := time.After(500 * time.Millisecond)
+	drainLoop := true
+	for drainLoop {
+		select {
+		case <-eventCh:
+			// discard warmup event
+		case <-timeout:
+			// no more events after timeout
+			drainLoop = false
+		default:
+			// if no events available but timeout hasn't occurred, 
+			// wait a bit to avoid CPU spin
+			time.Sleep(50 * time.Millisecond)
+		}
 	}
 
 	// create a file in the subdirectory to trigger an event
 	testFile := filepath.Join(subDir, "test.txt")
 	err = os.WriteFile(testFile, []byte("test content"), 0644)
 	require.NoError(t, err)
+	
+	// give a little time for the event to be processed
+	time.Sleep(100 * time.Millisecond)
 
 	// wait for the event to be received or timeout
 
