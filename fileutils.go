@@ -290,7 +290,7 @@ func TouchFile(path string) error {
 }
 
 // Checksum calculates the checksum of a file using the specified hash algorithm.
-// Supported algorithms are MD5, SHA1, and SHA256.
+// Supported algorithms are MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SHA512_224, and SHA512_256.
 func Checksum(path string, algo enum.HashAlg) (string, error) {
 	if path == "" {
 		return "", errors.New("empty path")
