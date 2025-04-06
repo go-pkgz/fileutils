@@ -92,17 +92,19 @@ func (fw *FileWatcher) watch() {
 
 			// convert fsnotify event to our event type
 			var eventType enum.EventType
-			if event.Has(fsnotify.Create) {
+			
+			switch {
+			case event.Has(fsnotify.Create):
 				eventType = enum.EventTypeCreate
-			} else if event.Has(fsnotify.Write) {
+			case event.Has(fsnotify.Write):
 				eventType = enum.EventTypeWrite
-			} else if event.Has(fsnotify.Remove) {
+			case event.Has(fsnotify.Remove):
 				eventType = enum.EventTypeRemove
-			} else if event.Has(fsnotify.Rename) {
+			case event.Has(fsnotify.Rename):
 				eventType = enum.EventTypeRename
-			} else if event.Has(fsnotify.Chmod) {
+			case event.Has(fsnotify.Chmod):
 				eventType = enum.EventTypeChmod
-			} else {
+			default:
 				continue // unknown event type
 			}
 
