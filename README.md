@@ -12,6 +12,7 @@ Package `fileutils` provides useful, high-level file operations.
 - `TempFileName` returns a new temporary file name using secure random generation
 - `SanitizePath` cleans file path
 - `TouchFile` creates an empty file or updates timestamps of existing one
+- `MkDir` creates a directory if it already exists it will do nothing
 - `Checksum` calculates file checksum using various hash algorithms (MD5, SHA1, SHA256, etc.)
 - `FileWatcher` watches files or directories for changes
 - `WatchRecursive` watches a directory recursively for changes

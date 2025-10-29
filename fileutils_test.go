@@ -229,6 +229,30 @@ func TestMoveFile(t *testing.T) {
 		}
 	})
 }
+func TestMkdDir(t *testing.T) {
+	t.Run("make dir[success]", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		newDir := filepath.Join(tmpDir, "dir")
+
+		err := MkDir(newDir)
+		require.NoError(t, err)
+
+		assert.True(t, IsDir(newDir))
+	})
+
+	t.Run("make existing dir", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		newDir := filepath.Join(tmpDir, "dir")
+		errMkDir := os.Mkdir(newDir, 0750)
+
+		require.NoError(t, errMkDir)
+
+		assert.True(t, IsDir(newDir))
+
+		err := MkDir(newDir)
+		require.NoError(t, err)
+	})
+}
 
 func TestTouchFile(t *testing.T) {
 	t.Run("create new", func(t *testing.T) {

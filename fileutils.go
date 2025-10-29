@@ -289,6 +289,24 @@ func TouchFile(path string) error {
 	return os.Chtimes(path, now, now)
 }
 
+// MkDir creates a directory
+func MkDir(path string) error {
+	if path == "" {
+		return errors.New("empty path")
+	}
+	isDir := IsDir(path)
+
+	if !isDir {
+		err := os.Mkdir(path, 0750)
+
+		if err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // Checksum calculates the checksum of a file using the specified hash algorithm.
 // Supported algorithms are MD5, SHA1, SHA224, SHA256, SHA384, SHA512, SHA512_224, and SHA512_256.
 func Checksum(path string, algo enum.HashAlg) (string, error) {
