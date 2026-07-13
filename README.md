@@ -4,97 +4,115 @@ Package `fileutils` provides useful, high-level file operations.
 
 ## Details
 
-- `IsFile` & `IsDir` checks if file/directory exists
-- `CopyFile` copies a file from source to destination, preserving mode, and refuses to copy a file onto itself
-- `CopyDir` copies all files recursively from the source to destination directory
-- `MoveFile` moves a file, using atomic rename when possible with copy+delete fallback
-- `ListFiles` returns sorted slice of file paths in directory
+- `IsFile` and `IsDir` check whether a file or directory exists
+- `CopyFile` copies a file from source to destination, preserving its mode, and refuses to copy a file onto itself
+- `CopyDir` copies all files recursively from the source to the destination directory
+- `MoveFile` moves a file, using atomic rename when possible with a copy-and-delete fallback
+- `ListFiles` returns a sorted slice of file paths in a directory
 - `TempFileName` returns a new temporary file name using secure random generation
-- `SanitizePath` cleans file path
-- `TouchFile` creates an empty file or updates timestamps of existing one
-- `Checksum` calculates file checksum using various hash algorithms (MD5, SHA1, SHA256, etc.)
+- `SanitizePath` cleans a file path
+- `TouchFile` creates an empty file or updates the timestamps of an existing one
+- `Checksum` calculates a file checksum using MD5, SHA-1, SHA-2 and related algorithms
 - `FileWatcher` watches files or directories for changes
 - `WatchRecursive` watches a directory recursively for changes
 
-## Usage Examples
+## Complete example
 
-### File Operations
+The following program creates and copies a file, calculates its SHA-256 checksum, and configures both watcher variants. It is also tracked as [`examples/basic/main.go`](examples/basic/main.go).
 
+<!-- fileutils-example-start -->
 ```go
-// Copy a file
-err := fileutils.CopyFile("source.txt", "destination.txt")
-if err != nil {
-    log.Fatalf("Failed to copy file: %v", err)
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+
+	"github.com/go-pkgz/fileutils"
+	"github.com/go-pkgz/fileutils/enum"
+)
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
 }
 
-// Move a file
-err = fileutils.MoveFile("source.txt", "destination.txt")
-if err != nil {
-    log.Fatalf("Failed to move file: %v", err)
-}
+func run() error {
+	workDir, err := os.MkdirTemp("", "fileutils-example-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(workDir)
 
-// Check if a file or directory exists
-if fileutils.IsFile("file.txt") {
-    fmt.Println("File exists")
-}
-if fileutils.IsDir("directory") {
-    fmt.Println("Directory exists")
-}
+	source := filepath.Join(workDir, "source.txt")
+	if writeErr := os.WriteFile(source, []byte("fileutils example\n"), 0o600); writeErr != nil {
+		return writeErr
+	}
 
-// Generate a temporary file name
-tempName, err := fileutils.TempFileName("/tmp", "prefix-*.ext")
-if err != nil {
-    log.Fatalf("Failed to generate temp file name: %v", err)
+	destination := filepath.Join(workDir, "copied.txt")
+	if copyErr := fileutils.CopyFile(source, destination); copyErr != nil {
+		return copyErr
+	}
+
+	checksum, err := fileutils.Checksum(destination, enum.HashAlgSHA256)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("SHA-256: %s\n", checksum)
+
+	handleEvent := func(event fileutils.FileEvent) {
+		fmt.Printf("Event: %s, path: %s\n", event.Type, event.Path)
+	}
+
+	fileWatcher, err := fileutils.NewFileWatcher(source, handleEvent)
+	if err != nil {
+		return err
+	}
+	defer fileWatcher.Close()
+
+	if addErr := fileWatcher.AddPath(destination); addErr != nil {
+		return addErr
+	}
+	if removeErr := fileWatcher.RemovePath(destination); removeErr != nil {
+		return removeErr
+	}
+
+	recursiveWatcher, err := fileutils.WatchRecursive(workDir, handleEvent)
+	if err != nil {
+		return err
+	}
+	defer recursiveWatcher.Close()
+
+	fmt.Printf("Watching %s\n", workDir)
+	return nil
 }
-fmt.Println("Temp file:", tempName)
+```
+<!-- fileutils-example-end -->
+
+To run this exact program from a repository checkout:
+
+```sh
+git clone https://github.com/go-pkgz/fileutils.git
+cd fileutils
+go mod download
+go run ./examples/basic
 ```
 
-### File Checksum
+To copy it into a new module instead, save the program as `main.go` and run:
 
-```go
-// Calculate MD5 checksum
-md5sum, err := fileutils.Checksum("path/to/file", enum.HashAlgMD5)
-if err != nil {
-    log.Fatalf("Failed to calculate MD5: %v", err)
-}
-fmt.Printf("MD5: %s\n", md5sum)
-
-// Calculate SHA256 checksum
-sha256sum, err := fileutils.Checksum("path/to/file", enum.HashAlgSHA256)
-if err != nil {
-    log.Fatalf("Failed to calculate SHA256: %v", err)
-}
-fmt.Printf("SHA256: %s\n", sha256sum)
-```
-
-### File Watcher
-
-```go
-// Create a simple file watcher
-watcher, err := fileutils.NewFileWatcher("/path/to/file", func(event FileEvent) {
-    fmt.Printf("Event: %s, Path: %s\n", event.Type, event.Path)
-})
-if err != nil {
-    log.Fatalf("Failed to create watcher: %v", err)
-}
-defer watcher.Close()
-
-// Watch a directory recursively
-watcher, err := fileutils.WatchRecursive("/path/to/dir", func(event FileEvent) {
-    fmt.Printf("Event: %s, Path: %s\n", event.Type, event.Path)
-})
-if err != nil {
-    log.Fatalf("Failed to create watcher: %v", err)
-}
-defer watcher.Close()
-
-// Add another path to an existing watcher
-err = watcher.AddPath("/path/to/another/file")
-
-// Remove a path from the watcher
-err = watcher.RemovePath("/path/to/file")
+```sh
+mkdir fileutils-example
+cd fileutils-example
+go mod init example.com/fileutils-example
+go get github.com/go-pkgz/fileutils@latest
+go run .
 ```
 
 ## Install and update
 
-`go get -u github.com/go-pkgz/fileutils`
+```sh
+go get github.com/go-pkgz/fileutils@latest
+```
