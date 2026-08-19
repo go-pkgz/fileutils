@@ -64,7 +64,8 @@ func exists(name string, dir bool) bool {
 }
 
 // CopyFile copies a file from source to dest, preserving mode.
-// Any existing file will be overwritten.
+// Any existing file will be overwritten, unless it is the source file itself,
+// i.e. both paths resolve to the same file, in which case the copy is refused.
 func CopyFile(src, dst string) error {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
@@ -81,16 +82,44 @@ func CopyFile(src, dst string) error {
 	}
 	defer func() { _ = srcFh.Close() }()
 
+	// use the descriptor's own info from here on, the path may resolve elsewhere after the open,
+	// and re-check the type so a source swapped for a directory can't get past the check above
+	if srcInfo, err = srcFh.Stat(); err != nil {
+		return fmt.Errorf("can't stat source file %s: %w", src, err)
+	}
+	if !srcInfo.Mode().IsRegular() {
+		return fmt.Errorf("can't copy non-regular source file %s (%s)", src, srcInfo.Mode().String())
+	}
+
 	err = os.MkdirAll(filepath.Dir(dst), 0o750)
 	if err != nil {
 		return fmt.Errorf("can't make destination directory %s: %w", filepath.Dir(dst), err)
 	}
 
-	dstFh, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, srcInfo.Mode()) //nolint:gosec // file path is provided by the caller
+	// no O_TRUNC, the destination must be checked against the source before any data is discarded
+	dstFh, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, srcInfo.Mode()) //nolint:gosec // file path is provided by the caller
 	if err != nil {
 		return fmt.Errorf("can't create destination file %s: %w", dst, err)
 	}
 	defer func() { _ = dstFh.Close() }()
+
+	dstInfo, err := dstFh.Stat()
+	if err != nil {
+		return fmt.Errorf("can't stat destination file %s: %w", dst, err)
+	}
+	if os.SameFile(srcInfo, dstInfo) {
+		return fmt.Errorf("can't copy %s to itself (%s)", src, dst)
+	}
+
+	// truncate and chmod are for regular files only, which is what the replaced O_TRUNC and
+	// OpenFile mode amounted to, the kernel ignores both on a fifo or a device
+	dstRegular := dstInfo.Mode().IsRegular()
+
+	if dstRegular {
+		if err = dstFh.Truncate(0); err != nil {
+			return fmt.Errorf("can't truncate destination file %s: %w", dst, err)
+		}
+	}
 
 	size, err := io.Copy(dstFh, srcFh)
 	if err != nil {
@@ -98,6 +127,13 @@ func CopyFile(src, dst string) error {
 	}
 	if size != srcInfo.Size() {
 		return fmt.Errorf("incomplete copy, %d of %d", size, srcInfo.Size())
+	}
+
+	// the mode passed to OpenFile applies to a newly created file only, and is filtered by umask
+	if dstRegular {
+		if err = dstFh.Chmod(srcInfo.Mode()); err != nil {
+			return fmt.Errorf("can't set mode on destination file %s: %w", dst, err)
+		}
 	}
 
 	return dstFh.Sync()
