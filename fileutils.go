@@ -54,7 +54,7 @@ func IsDir(dirname string) bool {
 
 func exists(name string, dir bool) bool {
 	info, err := os.Stat(name)
-	if os.IsNotExist(err) {
+	if err != nil { // any stat failure leaves info nil, not just a missing file
 		return false
 	}
 	if dir {
@@ -235,6 +235,11 @@ func SanitizePath(s string) string {
 // If rename fails (e.g., cross-device move), it will fall back to copy+delete.
 // It will create destination directories if they don't exist.
 func MoveFile(src, dst string) error {
+	return moveFile(src, dst, os.Rename)
+}
+
+// moveFile is MoveFile with the rename call injected, so the copy+delete fallback can be tested.
+func moveFile(src, dst string, rename func(oldpath, newpath string) error) error {
 	if src == "" {
 		return errors.New("empty source path")
 	}
@@ -257,7 +262,7 @@ func MoveFile(src, dst string) error {
 	}
 
 	// try atomic rename first
-	if err = os.Rename(src, dst); err == nil {
+	if err = rename(src, dst); err == nil {
 		return nil
 	}
 
@@ -267,7 +272,7 @@ func MoveFile(src, dst string) error {
 	}
 
 	// try rename again after creating directory
-	if err = os.Rename(src, dst); err == nil {
+	if err = rename(src, dst); err == nil {
 		return nil
 	}
 
