@@ -67,6 +67,108 @@ func TestCopyFile(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCopyFileToItself(t *testing.T) {
+	t.Run("same path", func(t *testing.T) {
+		srcFile := filepath.Join(t.TempDir(), "src.txt")
+		require.NoError(t, os.WriteFile(srcFile, []byte("test content"), 0o600))
+
+		err := CopyFile(srcFile, srcFile)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "to itself")
+
+		// the source must survive intact
+		content, err := os.ReadFile(srcFile) //nolint:gosec
+		require.NoError(t, err)
+		assert.Equal(t, "test content", string(content))
+	})
+
+	t.Run("hard link alias", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		srcFile := filepath.Join(tmpDir, "src.txt")
+		require.NoError(t, os.WriteFile(srcFile, []byte("test content"), 0o600))
+
+		linkFile := filepath.Join(tmpDir, "link.txt")
+		require.NoError(t, os.Link(srcFile, linkFile))
+
+		err := CopyFile(srcFile, linkFile)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "to itself")
+
+		content, err := os.ReadFile(srcFile) //nolint:gosec
+		require.NoError(t, err)
+		assert.Equal(t, "test content", string(content))
+	})
+
+	t.Run("symlink alias", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		srcFile := filepath.Join(tmpDir, "src.txt")
+		require.NoError(t, os.WriteFile(srcFile, []byte("test content"), 0o600))
+
+		linkFile := filepath.Join(tmpDir, "link.txt")
+		require.NoError(t, os.Symlink(srcFile, linkFile))
+
+		err := CopyFile(srcFile, linkFile)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "to itself")
+
+		content, err := os.ReadFile(srcFile) //nolint:gosec
+		require.NoError(t, err)
+		assert.Equal(t, "test content", string(content))
+	})
+
+	t.Run("copy dir onto itself", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "f.txt"), []byte("test content"), 0o600))
+
+		err := CopyDir(tmpDir, tmpDir)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "to itself")
+
+		content, err := os.ReadFile(filepath.Join(tmpDir, "f.txt")) //nolint:gosec
+		require.NoError(t, err)
+		assert.Equal(t, "test content", string(content))
+	})
+}
+
+func TestCopyFileOverwrite(t *testing.T) {
+	t.Run("replaces content and mode", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		srcFile := filepath.Join(tmpDir, "src.txt")
+		require.NoError(t, os.WriteFile(srcFile, []byte("new"), 0o600))
+
+		// pre-existing destination, longer content and a different mode
+		dstFile := filepath.Join(tmpDir, "dst.txt")
+		require.NoError(t, os.WriteFile(dstFile, []byte("much longer old content"), 0o644))
+		require.NoError(t, os.Chmod(dstFile, 0o644))
+
+		require.NoError(t, CopyFile(srcFile, dstFile))
+
+		content, err := os.ReadFile(dstFile) //nolint:gosec
+		require.NoError(t, err)
+		assert.Equal(t, "new", string(content), "leftover bytes from the old destination")
+
+		dstInfo, err := os.Stat(dstFile)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), dstInfo.Mode().Perm())
+	})
+
+	t.Run("mode not filtered by umask", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		srcFile := filepath.Join(tmpDir, "src.txt")
+		require.NoError(t, os.WriteFile(srcFile, []byte("test content"), 0o600))
+		require.NoError(t, os.Chmod(srcFile, 0o666))
+
+		dstFile := filepath.Join(tmpDir, "dst.txt")
+		require.NoError(t, CopyFile(srcFile, dstFile))
+
+		dstInfo, err := os.Stat(dstFile)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o666), dstInfo.Mode().Perm())
+	})
+}
+
 func TestListFiles(t *testing.T) {
 	list, err := ListFiles("testfiles")
 	require.NoError(t, err)
