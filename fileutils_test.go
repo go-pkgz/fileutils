@@ -1,6 +1,7 @@
 package fileutils
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,6 +30,39 @@ func TestExistsDir(t *testing.T) {
 	assert.True(t, IsDir(".."))
 	assert.True(t, IsDir("."))
 	assert.False(t, IsDir("testfiles-nop"))
+}
+
+func TestExistsStatError(t *testing.T) {
+	t.Run("invalid path", func(t *testing.T) {
+		invalidPath := "invalid\x00path"
+		_, err := os.Stat(invalidPath)
+		require.Error(t, err)
+		require.False(t, os.IsNotExist(err), "this path must produce a stat error other than not-exist")
+
+		assert.False(t, IsFile(invalidPath))
+		assert.False(t, IsDir(invalidPath))
+	})
+
+	t.Run("unreadable parent directory", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root bypasses directory permissions")
+		}
+
+		locked := filepath.Join(t.TempDir(), "locked")
+		require.NoError(t, os.Mkdir(locked, 0o700))
+		target := filepath.Join(locked, "file.txt")
+		require.NoError(t, os.WriteFile(target, []byte("test content"), 0o600))
+
+		require.NoError(t, os.Chmod(locked, 0o000))
+		t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+
+		_, err := os.Stat(target)
+		require.Error(t, err)
+		require.False(t, os.IsNotExist(err), "this path must produce a permission error, not not-exist")
+
+		assert.False(t, IsFile(target))
+		assert.False(t, IsDir(target))
+	})
 }
 
 func TestCopyFile(t *testing.T) {
@@ -271,7 +305,7 @@ func TestMoveFile(t *testing.T) {
 		assert.Equal(t, "test content", string(content))
 	})
 
-	t.Run("move with copy fallback", func(t *testing.T) {
+	t.Run("move into a missing directory", func(t *testing.T) {
 		// create source dir and file
 		srcDir := t.TempDir()
 		srcFile := filepath.Join(srcDir, "move_test_src2.txt")
@@ -287,6 +321,29 @@ func TestMoveFile(t *testing.T) {
 		require.NoError(t, err)
 
 		// verify move succeeded
+		_, err = os.Stat(srcFile)
+		assert.True(t, os.IsNotExist(err), "source file should not exist")
+
+		content, err := os.ReadFile(dstFile) //nolint:gosec
+		require.NoError(t, err)
+		assert.Equal(t, "test content", string(content))
+	})
+
+	t.Run("copy fallback when rename fails", func(t *testing.T) {
+		srcFile := filepath.Join(t.TempDir(), "move_test_src3.txt")
+		require.NoError(t, os.WriteFile(srcFile, []byte("test content"), 0o600))
+
+		dstFile := filepath.Join(t.TempDir(), "subdir", "move_test_dst.txt")
+
+		// rename always fails, so the copy+delete path has to carry the move
+		renameAttempts := 0
+		err := moveFile(srcFile, dstFile, func(_, _ string) error {
+			renameAttempts++
+			return errors.New("forced rename failure")
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 2, renameAttempts, "rename is retried once after the destination directory is created")
+
 		_, err = os.Stat(srcFile)
 		assert.True(t, os.IsNotExist(err), "source file should not exist")
 
@@ -337,13 +394,16 @@ func TestTouchFile(t *testing.T) {
 		tmpDir := t.TempDir()
 		newFile := filepath.Join(tmpDir, "new.txt")
 
+		// bound the modification time from below only, an upper bound would just measure the runner
+		before := time.Now().Add(-time.Second)
+
 		err := TouchFile(newFile)
 		require.NoError(t, err)
 
 		info, err := os.Stat(newFile)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), info.Size())
-		assert.True(t, time.Since(info.ModTime()) < time.Second)
+		assert.True(t, info.ModTime().After(before), "modification time should be set on creation")
 	})
 
 	t.Run("update existing", func(t *testing.T) {
@@ -353,10 +413,13 @@ func TestTouchFile(t *testing.T) {
 		err := os.WriteFile(existingFile, []byte("test"), 0600)
 		require.NoError(t, err)
 
-		// get original time and wait a bit
+		// backdate the file rather than sleeping, so the timestamp has to move regardless of
+		// how coarse the filesystem's timestamp resolution is
+		backdated := time.Now().Add(-time.Hour)
+		require.NoError(t, os.Chtimes(existingFile, backdated, backdated))
+
 		origInfo, err := os.Stat(existingFile)
 		require.NoError(t, err)
-		time.Sleep(time.Millisecond * 100)
 
 		err = TouchFile(existingFile)
 		require.NoError(t, err)
