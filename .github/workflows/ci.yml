@@ -6,32 +6,36 @@ on:
     tags:
   pull_request:
 
+permissions:
+  contents: read  # to fetch code (actions/checkout)
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: set up go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: "1.19"
         id: go
 
       - name: build and test
         run: |
-          export GO111MODULE=on
-          export TZ="America/Chicago"
           go get -v
-          go test -timeout=60s -v -covermode=count -coverprofile=$GITHUB_WORKSPACE/profile.cov_tmp
+          go test -timeout=60s -v -race -covermode=atomic -coverprofile=$GITHUB_WORKSPACE/profile.cov_tmp
           cat $GITHUB_WORKSPACE/profile.cov_tmp | grep -v "_mock.go" > $GITHUB_WORKSPACE/profile.cov
+        env:
+          GO111MODULE: "on"
+          TZ: "America/Chicago"
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.6
+          version: v2.12
 
       - name: install goveralls
         run: |
