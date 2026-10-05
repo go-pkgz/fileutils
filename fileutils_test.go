@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -529,4 +530,14 @@ func TestChecksum(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "empty path")
 	})
+}
+
+func TestSanitizePathUTF8Boundary(t *testing.T) {
+	// 1022 ASCII bytes + a 3-byte rune exceeds maxPathLength (1024) by one byte.
+	// Truncation must not leave an incomplete UTF-8 sequence.
+	inp := strings.Repeat("a", 1022) + "世"
+	out := SanitizePath(inp)
+	assert.True(t, utf8.ValidString(out))
+	assert.LessOrEqual(t, len(out), 1024)
+	assert.True(t, strings.HasPrefix(out, strings.Repeat("a", 1022)))
 }

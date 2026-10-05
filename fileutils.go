@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-pkgz/fileutils/enum"
 )
@@ -226,6 +227,10 @@ func SanitizePath(s string) string {
 
 	if len(s) > maxPathLength {
 		s = s[:maxPathLength]
+		// Truncating by byte length can split a multi-byte rune; trim back to a valid UTF-8 prefix.
+		for len(s) > 0 && !utf8.ValidString(s) {
+			s = s[:len(s)-1]
+		}
 	}
 
 	return s
